@@ -36,11 +36,12 @@ def search_for_artist(token, artist_name):
     
     query_url = f"{url}?{query}"
     result = get(query_url, headers=headers)
-    json_result = json.loads(result.content)["artists"]["items"]
+    json_result = json.loads(result.content)
     
-    if len(json_result) == 0:
-        print("No artist exists")
+    if "error" in json_result:
         return None
+    else:
+        json_result = json.loads(result.content)["artists"]["items"]
 
     return json_result[0]
 
@@ -53,16 +54,54 @@ def get_songs_by_artist(token, artist_id):
 
     return json_result
 
+def get_albums_by_artist(token, artist_id):
+    url = f"https://api.spotify.com/v1/artists/{artist_id}/albums"
+    headers = get_auth_header(token)
+    result = get(url, headers=headers)
+    json_result = json.loads(result.content)
+    
+    all_items = json_result["items"]
+    albums = []
+    singles = []
+    for x in all_items:
+        if x['album_type'] == "album":
+            albums.append(x["name"])
+        elif x['album_type'] == "single":
+            singles.append(x["name"])
+    
+    return albums, singles
+
+
+
 token = get_token()
 while True:
     user_input = input("Which artist do you want to see top tracks for?: ").lower()
     artist = search_for_artist(token, user_input)
-    artist_id = artist["id"]
-    songs = get_songs_by_artist(token, artist_id)
-    print(f"Top 10 Tracks for {artist['name']}")
-    for idx, song in enumerate(songs):
-        print(f"{idx + 1:2}. {song['name']:<}")
+    if artist is not None:
+        print("1 = Top 10 Songs")
+        print("2 = Albums")
+        user_input_2 = input("What would you like to see?: ")
+        while user_input_2 not in ['1', '2']:
+            user_input_2 = input("Invalid input. Try again: ")
+        artist_id = artist["id"]
+        
+        if user_input_2 == "1":
+            songs = get_songs_by_artist(token, artist_id)
+            print(f"Top 10 Tracks for {artist['name']}")
+            for song_num, song in enumerate(songs):
+                print(f"{song_num + 1:2}. {song['name']}")
+        elif user_input_2 == "2":
+            artist_albums, artist_singles = get_albums_by_artist(token, artist_id)
 
+            print(f"\n{artist['name']}'s Albums:")
+            for album_num, album in enumerate(artist_albums):
+                print(f"{album_num + 1:2}. {album}")
+
+            # print(f"\n{artist['name']}'s Singles:")
+            # for singles_num, single in enumerate(artist_singles):
+            #     print(f"{singles_num + 1:2}. {single}")
+    else:
+        print(f"'{user_input}' does not exist")
     user_quit = input("Enter 'y' to quit: ").lower()
     if user_quit == 'y':
         break
